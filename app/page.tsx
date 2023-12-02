@@ -31,8 +31,6 @@ export default function Home() {
     fetchData();
   }, []);
 
-  console.log(sensorData[0]);
-
   const realtimeTemp = sensorData[0]?.temperature || 0;
   const realtimeHumid = sensorData[0]?.humidity || 0;
   const realtimeSoil = sensorData[0]?.soilMoisture || 0;

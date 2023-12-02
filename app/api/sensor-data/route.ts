@@ -1,4 +1,3 @@
-// Import necessary types
 import mongoDbClient from "@/app/mongodb";
 import type { NextApiRequest, NextApiResponse } from "next";
 
