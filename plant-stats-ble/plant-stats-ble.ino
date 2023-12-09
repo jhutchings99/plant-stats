@@ -8,16 +8,24 @@
 
 #define DHTPIN 13
 #define DHTTYPE DHT11
-#define MOISTURE A0
-
+#define MOISTURE 36
+#define LIGHT 37
 
 BLECharacteristic *pCharacteristic;
 String data = "";
 
-
 DHT dht(DHTPIN, DHTTYPE);
 float temperatureFValue, humidityValue;
+int moistureValue;
+float moisture;
+int lightValue;
+float light;
 
+const int dry = 2700;
+const int wet = 239;
+
+const int high = 4095;
+const int low = 10;
 
 void printToScreen(String s) {
   Heltec.display->clear();
@@ -60,6 +68,7 @@ void setup() {
   Heltec.begin(true /*display*/, false /*LoRa*/, true /*Serial*/);
   dht.begin();
   pinMode(MOISTURE, INPUT);
+  pinMode(LIGHT, INPUT);
 
   printToScreen("Starting BLE!");
   BLEDevice::init(DEVICE_NAME);
@@ -71,8 +80,9 @@ void setup() {
 
   pCharacteristic = pService->createCharacteristic(
     CHARACTERISTIC_UUID,
-    BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE
+    BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_NOTIFY
   );
+
   pCharacteristic->setCallbacks(new MyCharacteristicCallbacks());
   pCharacteristic->setValue("Init");
 
@@ -84,17 +94,30 @@ void setup() {
   BLEDevice::startAdvertising();
 }
 
+float mapfloat(float x, float in_min, float in_max, float out_min, float out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
 
-// void loop() {
-//   temperatureFValue = dht.readTemperature(true);
-//   humidityValue = dht.readHumidity();
+void loop() {
+  temperatureFValue = dht.readTemperature(true);
+  humidityValue = dht.readHumidity();
 
-//   int moistureSensor = analogRead(MOISTURE);
+  int moistureValue = analogRead(MOISTURE);  
+  moisture = mapfloat(moistureValue, wet, dry, 100, 0); 
+
+  int lightValue = analogRead(LIGHT);
+  light = mapfloat(lightValue, low, high, 0, 100);
+
+  String sensorValuesString = String(temperatureFValue) +  "\n" + String(humidityValue) + "\n" + String(moisture) + "\n" + String(light);
   
-//   String sensorValuesString = String(temperatureFValue) +  "°F\n" + String(humidityValue) + "%\n" + String(moistureSensor) + "\n";
+  Serial.println(lightValue);
+  // Serial.println(moistureValue);
+  // Serial.println(sensorValuesString);
+  printToScreen(sensorValuesString);
   
-//   Serial.println(sensorValuesString);
-//   printToScreen(sensorValuesString);
-// }
+  pCharacteristic->setValue(sensorValuesString.c_str());
 
-void loop(){}
+  pCharacteristic->notify();
+
+  delay(1000);
+}

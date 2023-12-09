@@ -15,30 +15,36 @@ interface SensorData {
 }
 
 export default function Home() {
-  const [sensorData, setSensorData] = useState<SensorData[]>([]);
+  const [realtimeTemp, setRealtimeTemp] = useState(0);
+  const [realtimeHumid, setRealtimeHumid] = useState(0);
+  const [realtimeSoil, setRealtimeSoil] = useState(0);
+  const [realtimeLight, setRealtimeLight] = useState(0);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const response = await fetch("/api/sensor-data");
-        const data = await response.json();
-        setSensorData(data);
-      } catch (error) {
-        console.error("Error fetching sensor data:", error);
-      }
-    }
+  const handleSensorDataReceived = (newData: any) => {
+    const split = newData.split("\n");
+    setRealtimeTemp(parseFloat(split[0]));
+    setRealtimeHumid(parseFloat(split[1]));
+    setRealtimeSoil(parseInt(split[2]));
+    setRealtimeLight(parseInt(split[3]));
+  };
 
-    fetchData();
-  }, []);
+  // useEffect(() => {
+  //   async function fetchData() {
+  //     try {
+  //       const response = await fetch("/api/sensor-data");
+  //       const data = await response.json();
+  //       console.log(data);
+  //     } catch (error) {
+  //       console.error("Error fetching sensor data:", error);
+  //     }
+  //   }
 
-  const realtimeTemp = sensorData[0]?.temperature || 0;
-  const realtimeHumid = sensorData[0]?.humidity || 0;
-  const realtimeSoil = sensorData[0]?.soilMoisture || 0;
-  const realtimeLight = sensorData[0]?.lightLevel || 0;
+  //   fetchData();
+  // }, []);
 
   return (
     <div>
-      <Navbar />
+      <Navbar onSensorDataReceived={handleSensorDataReceived} />
       <div className="flex justify-around mt-8">
         <SensorValueCard
           sensorName={"Temperature"}

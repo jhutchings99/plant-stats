@@ -12,15 +12,15 @@ export default function SensorValueCard({
   const formattedSensorValue = sensorValue.toFixed(2);
 
   return (
-    <div className="border-2 border-black rounded h-[20vh] w-[15vw] p-4">
+    <div className="border-2 border-black rounded-md h-[30vh] w-[20vw] p-4">
       <div className="flex items-center justify-center gap-2">
         <p className="text-3xl">{icon}</p>
         <p className="text-2xl font-bold">{sensorName}</p>
       </div>
       <hr className="bg-black" />
-      <div className="flex items-center justify-center">
-        <p className="text-3xl">{formattedSensorValue}</p>
-        <p className="text-3xl font-thin">
+      <div className="flex items-center justify-center pb-4">
+        <p className="text-5xl pt-4">{formattedSensorValue}</p>
+        <p className="text-2xl font-thin pt-4">
           {sensorName === "Temperature" ? "°F" : "%"}
         </p>
       </div>

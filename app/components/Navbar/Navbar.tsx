@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { PiPlant } from "react-icons/pi";
-import Link from "next/link";
 
-function connectBle(characteristicId: string, serviceId: string, model: any) {
+function connectBle(characteristicId: string, serviceId: string, model: any, dec:any, setSensorData: any, handleNewSensorData: any) {
   navigator.bluetooth.requestDevice({
     filters: [{ services: [serviceId] }]
   }).then(device => {
@@ -15,46 +13,78 @@ function connectBle(characteristicId: string, serviceId: string, model: any) {
   }).then(service => {
     return service?.getCharacteristic(characteristicId);
   }).then(character => {
-    model.characteristic = character
+    model.characteristic = character;
+    getCurrentSensorData(character, dec, setSensorData, handleNewSensorData);
   });
 }
 
-function sendTest(msg: string, model: any, enc: any) {
-  if (!model.characteristic) {
-    return;
-  }
-
-  model.characteristic.writeValue(enc.encode(msg));
+function getCurrentSensorData(characteristic: any, dec: any, setSensorData: any, handleNewSensorData: any) {
+  setInterval(() => {
+    characteristic.readValue()
+      .then((value: any) => {
+        const sensorData = dec.decode(value);
+        setSensorData(sensorData);
+        handleNewSensorData(sensorData);
+      })
+  }, 1000);
 }
 
-function receiveTest(model: any, dec: any) {
-  if (!model.characteristic) {
-    return;
+async function sendDataToDb(sensorData: any) {
+  try {
+    const response = await fetch("/api/sensor-data", {
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(sensorData)
+    });
+    const data = await response.json();
+    console.log(data);
+  } catch (error) {
+    console.error("Error posting sensor data:", error);
   }
-
-  model.characteristic.readValue().then(function (msg: string) {
-    model.recvMsg = dec.decode(msg);
-  });
 }
 
-export default function Navbar() {
-  const [isOnDashboard, setIsOnDashboard] = useState(false);
-  const pathname = usePathname();
+function formatSensorValues(sensorValues: any) {
+  let split = sensorValues.split("\n");
 
+  let formatted = {
+    temperature: parseFloat(split[0]),
+    humidity: parseFloat(split[1]),
+    soilMoisture: parseFloat(split[2]),
+    lightLevel: parseFloat(split[3]),
+  }
+  return formatted;
+}
+
+export default function Navbar({ onSensorDataReceived }: any) {
+  const [sensorData, setSensorData] = useState("");
+  const latestSensorData = useRef<{} | null>(null);
+
+  const dec = new TextDecoder();
   const serviceId        = "c4ae5be3-d939-4a88-82f9-8b8c73e81c01";
   const characteristicId = "b7b46926-2e25-4a90-9174-d71ae1c3bb12";
   
-  // let myCharacteristic: null = null;
   let model = {
     characteristic: null,
     recvMsg: ""
   }
-  const dec = new TextDecoder();
-  const enc = new TextEncoder();
+
+  const handleNewSensorData = (newData: any) => {
+    latestSensorData.current = formatSensorValues(newData);
+    onSensorDataReceived(newData);
+  };
 
   useEffect(() => {
-    setIsOnDashboard(pathname === "/dashboard");
-  }, [pathname]);
+    const intervalId = setInterval(() => {
+      if (latestSensorData.current) {
+        sendDataToDb(latestSensorData.current);
+      }
+    }, 10000);
+  
+    return () => clearInterval(intervalId);
+  }, []);
+  
 
   return (
     <div className=" flex justify-between items-center p-4 shadow-lg">
@@ -64,40 +94,12 @@ export default function Navbar() {
         <p className="text-logo-secondary text-4xl">stats</p>
       </div>
       <div className="flex gap-2">
-      <button
-          className="text-logo-secondary bg-logo-primary font-semibold rounded-md py-2 px-4 text-xl"
-          onClick={() => {receiveTest(model, dec); console.log(model)}}
-        >
-          Receive Test {model.recvMsg}
-        </button>
-      <button
-          className="text-logo-secondary bg-logo-primary font-semibold rounded-md py-2 px-4 text-xl"
-          onClick={() => {sendTest("testing", model, enc)}}
-        >
-          Send Test
-        </button>
         <button
           className="text-logo-secondary bg-logo-primary font-semibold rounded-md py-2 px-4 text-xl"
-          onClick={() => {connectBle(characteristicId, serviceId, model)}}
+          onClick={() => {connectBle(characteristicId, serviceId, model, dec, setSensorData, handleNewSensorData)}}
         >
           Connect
         </button>
-        {!isOnDashboard && (
-          <Link
-            href="/dashboard"
-            className="text-logo-secondary bg-logo-primary font-semibold rounded-md py-2 px-4 text-xl"
-          >
-            Dashboard
-          </Link>
-        )}
-        {isOnDashboard && (
-          <Link
-            href="/"
-            className="text-logo-secondary bg-logo-primary font-semibold rounded-md py-2 px-4 text-xl"
-          >
-            Realtime
-          </Link>
-        )}
       </div>
     </div>
   );
